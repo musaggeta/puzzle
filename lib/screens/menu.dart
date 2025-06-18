@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'puzzle.dart';
+import 'puzzleChessScreen.dart';
 
 class MenuScreen extends StatefulWidget {
   const MenuScreen({super.key});
@@ -44,7 +45,24 @@ class _MenuScreenState extends State<MenuScreen> {
                     ),
                   );
                 }),
-                _menuButton(1, 0, 'Futuro', Colors.grey.shade200, Colors.grey.shade800, () {}),
+                _menuButton(1, 0, 'Ajedrez', Colors.white, Colors.teal, () {
+                  Navigator.push(
+                    context,
+                    PageRouteBuilder(
+                      transitionDuration: const Duration(milliseconds: 800),
+                      pageBuilder: (context, animation, secondaryAnimation) => const PuzzleChessScreen(),
+                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                        return ClipRect(
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            heightFactor: animation.value,
+                            child: child,
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                }),
                 _menuButton(0, -1, 'Config', Colors.grey.shade200, Colors.grey.shade800, () {}),
                 _menuButton(0, 1, 'Salir', Colors.grey.shade200, Colors.grey.shade800, () {}),
               ],

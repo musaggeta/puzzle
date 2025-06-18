@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/modelo.dart';
-import 'dart:math';
+import 'dart:async';
+import 'dart:async';
+import 'package:collection/collection.dart';
 
 class PuzzleScreen extends StatefulWidget {
   const PuzzleScreen({super.key});
@@ -17,12 +19,25 @@ class _PuzzleScreenState extends State<PuzzleScreen> {
   final List<String> meta = ['MAYA','PAYA','KIMSA','PUSI','PHESKA','SOJTA','QALTA','KONTSA','X'];
   late Stopwatch _stopwatch;
   int _movimientos = 0;
+  late Timer _timer;
+  Duration _elapsed = Duration.zero;
 
   @override
   void initState() {
     super.initState();
-    _stopwatch = Stopwatch()..start();
     _crearPuzzle();
+    _stopwatch = Stopwatch()..start();
+    _timer = Timer.periodic(Duration(seconds: 1), (_) {
+      setState(() {
+        _elapsed = _stopwatch.elapsed;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
   }
 
   void _crearPuzzle() {
@@ -96,6 +111,88 @@ class _PuzzleScreenState extends State<PuzzleScreen> {
     }
   }
 
+void _resolverAutomatico() async {
+    // Implementación real del algoritmo A*
+    final start = vNodo.map((e) => e.mensaje).toList();
+    final goal = List.from(meta);
+
+    List<List<String>> vecinos(List<String> estado) {
+      int idx = estado.indexOf("X");
+      int row = idx ~/ 3;
+      int col = idx % 3;
+
+      List<List<String>> res = [];
+      List<List<int>> dirs = [[0,1],[1,0],[0,-1],[-1,0]];
+
+      for (var dir in dirs) {
+        int newRow = row + dir[0];
+        int newCol = col + dir[1];
+        if (newRow >= 0 && newRow < 3 && newCol >= 0 && newCol < 3) {
+          int newIdx = newRow * 3 + newCol;
+          List<String> copia = List.from(estado);
+          copia[idx] = copia[newIdx];
+          copia[newIdx] = "X";
+          res.add(copia);
+        }
+      }
+      return res;
+    }
+
+    int heuristica(List<String> estado) {
+      int total = 0;
+      for (int i = 0; i < estado.length; i++) {
+        int idxGoal = goal.indexOf(estado[i]);
+        total += (i % 3 - idxGoal % 3).abs() + (i ~/ 3 - idxGoal ~/ 3).abs();
+      }
+      return total;
+    }
+
+    final open = PriorityQueue<List<String>>((a, b) =>
+      (heuristica(a)).compareTo(heuristica(b)));
+    final cameFrom = <String, String>{};
+    final visited = <String>{};
+
+    open.add(start);
+    cameFrom[start.join(",")] = "";
+
+    while (open.isNotEmpty) {
+      final current = open.removeFirst();
+      final currentKey = current.join(",");
+      if (visited.contains(currentKey)) continue;
+      visited.add(currentKey);
+      if (listEquals(current, goal)) break;
+      for (final vecino in vecinos(current)) {
+        final key = vecino.join(",");
+        if (!visited.contains(key)) {
+          open.add(vecino);
+          cameFrom[key] = currentKey;
+        }
+      }
+    }
+
+    // reconstruir ruta
+    List<List<String>> path = [];
+    String? key = goal.join(",");
+    while (key != null && key.isNotEmpty) {
+      path.add(key.split(","));
+      key = cameFrom[key];
+    }
+    path = path.reversed.toList();
+
+    for (final estado in path) {
+      await Future.delayed(dur);
+      setState(() {
+        for (int i = 0; i < 9; i++) {
+          vNodo[i].mensaje = estado[i];
+          vNodo[i].color = estado[i] == "X"
+              ? Colors.white
+              : Colors.primaries[i % Colors.primaries.length];
+        }
+        posicionPivote = vNodo.indexWhere((e) => e.mensaje == "X");
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -141,6 +238,11 @@ class _PuzzleScreenState extends State<PuzzleScreen> {
                 _movimientos = 0;
               });
             },
+          ),
+          IconButton(
+            icon: const Icon(Icons.play_arrow),
+            tooltip: 'Resolver automáticamente',
+            onPressed: _resolverAutomatico,
           )
         ],
       ),
@@ -149,8 +251,8 @@ class _PuzzleScreenState extends State<PuzzleScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text('Movimientos: $_movimientos'),
+              padding: const EdgeInsets.all(4.0),
+              child: Text('Movimientos: $_movimientos | Tiempo: ${_elapsed.inSeconds}s'),
             ),
             Center(
               child: SizedBox(
